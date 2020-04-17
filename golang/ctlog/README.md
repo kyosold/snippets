@@ -17,18 +17,15 @@ if err != nil {
 ```go
 ctlog.SetLevel(CTINFO)
 ```
-参数说明:
-
-参数 | 值
---|:-:|--
-CTEMERG | 0
-CTALERT | 1
-CTCRIT | 2
-CTERR | 3
-CTWARNING | 4
-CTNOTICE | 5
-CTINFO | 6
-CTDEBUG | 7
+- 参数说明:
+   - CTEMERG: 0
+   - CTALERT: 1
+   - CTCRIT: 2
+   - CTERR: 3
+   - CTWARNING: 4
+   - CTNOTICE: 5
+   - CTINFO: 6
+   - CTDEBUG: 7
 
 **3. 调用方式:**
 ```
