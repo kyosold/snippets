@@ -12,20 +12,6 @@ import (
 	"github.com/go-ini/ini"
 )
 
-type CONF struct {
-	host string
-	from string
-	to   string
-	eml  string
-
-	tls      bool
-	isAuth   bool
-	user     string
-	password string
-
-	attachList []string
-}
-
 func usage(prog string) {
 	fmt.Println("Usage:")
 	fmt.Printf("  %s [config file]\n", prog)
@@ -61,7 +47,7 @@ func main() {
 	from := smtpSection.Key("From").String()
 	to := smtpSection.Key("To").String()
 	eml := smtpSection.Key("Eml").String()
-	tls := smtpSection.Key("Tls").String()
+	crypto := smtpSection.Key("Crypto").String()
 	isAuth := smtpSection.Key("IsAuth").String()
 	user := smtpSection.Key("User").String()
 	password := smtpSection.Key("Password").String()
@@ -83,7 +69,7 @@ func main() {
 	fmt.Println("  Password:", password)
 	fmt.Println("  From:", from)
 	fmt.Println("  To:", to)
-	fmt.Println("  Tls:", tls)
+	fmt.Println("  Crypto:", crypto)
 	fmt.Println("  Attach:", attach)
 	fmt.Println()
 
@@ -94,9 +80,13 @@ func main() {
 	fmt.Println("**************************************")
 
 	toList := strings.Split(to, ",")
-	btls := false
-	if tls == "1" {
-		btls = true
+	itls := mail.DIS
+	if crypto == "1" {
+		itls = mail.TLS
+	} else if crypto == "2" {
+		itls = mail.SSL
+	} else {
+		itls = mail.DIS
 	}
 	var attachList []string
 	if len(attach) > 0 {
@@ -118,7 +108,7 @@ func main() {
 		}
 	}
 
-	smtp, err := mail.NewSmtp(host, btls, from, toList)
+	smtp, err := mail.NewSmtp(host, itls, from, toList)
 	if err != nil {
 		log.Fatal(err)
 	}

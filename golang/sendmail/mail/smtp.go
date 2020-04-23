@@ -2,6 +2,7 @@ package mail
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -11,27 +12,48 @@ import (
 	"strings"
 )
 
+const (
+	DIS int = 0
+	TLS int = 1
+	SSL int = 2
+)
+
+type CONF struct {
+	host string
+	from string
+	to   string
+	eml  string
+
+	cryto    int
+	isAuth   bool
+	user     string
+	password string
+
+	attachList []string
+}
+
 type step int
 
 const (
-	GREET step = 0
-	HELO  step = 1
-	AUTH  step = 2
-	USER  step = 3
-	PASS  step = 4
-	FROM  step = 5
-	TO    step = 6
-	DATA  step = 7
-	EOH   step = 8
-	EOM   step = 9
-	QUIT  step = 10
-	CLOSE step = 11
-	NEW   step = 99
+	GREET    step = 0
+	EHELO    step = 1
+	AUTH     step = 2
+	USER     step = 3
+	PASS     step = 4
+	FROM     step = 5
+	TO       step = 6
+	DATA     step = 7
+	EOH      step = 8
+	EOM      step = 9
+	QUIT     step = 10
+	CLOSE    step = 11
+	STARTTLS step = 12
+	NEW      step = 99
 )
 
 type SMTP struct {
 	CurStep  step
-	UseTLS   bool
+	UseTLS   int
 	Host     string
 	User     string
 	Password string
@@ -46,7 +68,7 @@ type MailMime struct {
 }
 
 // host: server_address:port
-func NewSmtp(host string, useTLS bool, from string, to []string) (SMTP, error) {
+func NewSmtp(host string, useTLS int, from string, to []string) (SMTP, error) {
 	smtp := SMTP{}
 	smtp.Verbose = false
 	smtp.Host = host
@@ -57,6 +79,7 @@ func NewSmtp(host string, useTLS bool, from string, to []string) (SMTP, error) {
 	return smtp, nil
 }
 
+/*
 func (smtp SMTP) SendMailWithMailMime(mail MailMime) (string, error) {
 	res := ""
 
@@ -97,8 +120,8 @@ func (smtp SMTP) SendMailWithMailMime(mail MailMime) (string, error) {
 
 		switch smtpStatus {
 		case GREET:
-			smtpStatus = HELO
-		case HELO:
+			smtpStatus = EHELO
+		case EHELO:
 			if strings.Contains(buf, "250-AUTH") {
 				smtpStatus = AUTH
 			} else {
@@ -124,7 +147,7 @@ func (smtp SMTP) SendMailWithMailMime(mail MailMime) (string, error) {
 			smtpStatus = CLOSE
 		}
 
-		if smtpStatus == HELO {
+		if smtpStatus == EHELO {
 			hname, err := os.Hostname()
 			if err != nil {
 				fmt.Println(err)
@@ -257,6 +280,7 @@ func (smtp SMTP) SendMailWithMailMime(mail MailMime) (string, error) {
 
 	return res, nil
 }
+*/
 
 func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, attachList []string) (string, error) {
 	res := ""
@@ -270,13 +294,30 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 	readerEml := bufio.NewReader(emlFP)
 	bufEml := make([]byte, 4096)
 
+	hname, err := os.Hostname()
+	if err != nil {
+		fmt.Println(err)
+		return res, nil
+	}
+
+	isTLS := 0
+
 	var smtpStatus step = GREET
 	toi := 0
 
-	conn, err := net.Dial("tcp", smtp.Host)
-	if err != nil {
-		fmt.Println("Connect Fail:", err)
-		return res, err
+	var conn net.Conn
+	if smtp.UseTLS == SSL {
+		conn, err = tls.Dial("tcp", smtp.Host, nil)
+		if err != nil {
+			fmt.Println(err)
+			return res, err
+		}
+	} else {
+		conn, err = net.Dial("tcp", smtp.Host)
+		if err != nil {
+			fmt.Println(err)
+			return res, err
+		}
 	}
 	defer conn.Close()
 
@@ -307,9 +348,22 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		switch smtpStatus {
 		case GREET:
-			smtpStatus = HELO
-		case HELO:
-			if strings.Contains(buf, "250-AUTH") {
+			smtpStatus = EHELO
+		case STARTTLS:
+			tlsConf := &tls.Config{
+				ServerName:         hname,
+				InsecureSkipVerify: true,
+			}
+			conn = tls.Client(conn, tlsConf)
+			reader = bufio.NewReader(conn)
+			isTLS = 2
+			smtpStatus = EHELO
+		case EHELO:
+			if smtp.UseTLS == TLS && isTLS == 0 && strings.Contains(buf, "250-STARTTLS") {
+				// use tls
+				isTLS = 1
+				smtpStatus = STARTTLS
+			} else if strings.Contains(buf, "250-AUTH") {
 				smtpStatus = AUTH
 			} else {
 				smtpStatus = FROM
@@ -334,19 +388,18 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 			smtpStatus = CLOSE
 		}
 
-		if smtpStatus == HELO {
-			hname, err := os.Hostname()
-			if err != nil {
-				fmt.Println(err)
-				return res, nil
-			}
+		if smtpStatus == EHELO {
 
 			text := "EHLO " + hname + "\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
+			err = sendSmtp(conn, text, smtp.Verbose)
+			if err != nil {
+				fmt.Println("Write Fail:", err)
+				return res, err
 			}
 
-			err = sendSmtp(conn, text)
+		} else if smtpStatus == STARTTLS {
+			text := "STARTTLS\r\n"
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -354,11 +407,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		} else if smtpStatus == AUTH {
 			text := "AUTH LOGIN\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-
-			err := sendSmtp(conn, text)
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -366,11 +415,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		} else if smtpStatus == USER {
 			text := smtp.User + "\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-
-			err := sendSmtp(conn, text)
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -378,11 +423,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		} else if smtpStatus == PASS {
 			text := smtp.Password + "\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-
-			err := sendSmtp(conn, text)
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -390,10 +431,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		} else if smtpStatus == FROM {
 			text := "MAIL FROM:<" + smtp.EnvFrom + ">\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-			err := sendSmtp(conn, text)
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -401,10 +439,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		} else if smtpStatus == TO {
 			text := "RCPT TO:<" + smtp.EnvTO[toi] + ">\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-			err := sendSmtp(conn, text)
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -413,10 +448,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 
 		} else if smtpStatus == DATA {
 			text := "DATA\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-			err := sendSmtp(conn, text)
+			err := sendSmtp(conn, text, smtp.Verbose)
 			if err != nil {
 				fmt.Println("Write Fail:", err)
 				return res, err
@@ -426,10 +458,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 			if len(header) > 0 { // 写自定义头
 				for key, val := range header {
 					hline := key + ": " + val + "\r\n"
-					if smtp.Verbose {
-						fmt.Printf("> %s", hline)
-					}
-					err = sendSmtp(conn, hline)
+					err = sendSmtp(conn, hline, smtp.Verbose)
 					if err != nil {
 						fmt.Println("Write Fail:", err)
 						return res, err
@@ -448,13 +477,10 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 				mhead = mhead + "\tboundary=\"" + boundaryID + "\"\r\n"
 				mhead = mhead + "MIME-Version: 1.0\r\n"
 
-				err = sendSmtp(conn, mhead)
+				err = sendSmtp(conn, mhead, smtp.Verbose)
 				if err != nil {
 					fmt.Println("Write Fail:", err)
 					return res, err
-				}
-				if smtp.Verbose {
-					fmt.Printf("> %s", mhead)
 				}
 
 				for _, attach := range attachList {
@@ -464,13 +490,10 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 					boundaryHead = boundaryHead + "Content-Transfer-Encoding: base64\r\n"
 					boundaryHead = boundaryHead + "Content-Disposition: attachment;\r\n\tfilename=\"" + name + "\"\r\n\r\n"
 
-					err = sendSmtp(conn, boundaryHead)
+					err = sendSmtp(conn, boundaryHead, smtp.Verbose)
 					if err != nil {
 						fmt.Println("Write Fail:", err)
 						return res, err
-					}
-					if smtp.Verbose {
-						fmt.Printf("> %s", boundaryHead)
 					}
 
 					attText, err := getAttachConextMimeWithFile(attach)
@@ -479,24 +502,18 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 						return res, err
 					}
 
-					err = sendSmtp(conn, attText)
+					err = sendSmtp(conn, attText, smtp.Verbose)
 					if err != nil {
 						fmt.Println("Write Fail:", err)
 						return res, err
 					}
-					if smtp.Verbose {
-						fmt.Printf("> %s", attText)
-					}
 
 				}
 				boundaryEnd := "\r\n\r\n--" + boundaryID + "--\r\n"
-				err = sendSmtp(conn, boundaryEnd)
+				err = sendSmtp(conn, boundaryEnd, smtp.Verbose)
 				if err != nil {
 					fmt.Println("Write Fail:", err)
 					return res, err
-				}
-				if smtp.Verbose {
-					fmt.Printf("> %s", boundaryEnd)
 				}
 			} else {
 				// 写邮件正文
@@ -510,11 +527,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 						break
 					}
 
-					if smtp.Verbose {
-						fmt.Printf("> %s", string(bufEml))
-					}
-
-					err = sendSmtp(conn, string(bufEml))
+					err = sendSmtp(conn, string(bufEml), smtp.Verbose)
 					if err != nil {
 						fmt.Println("Write Fail:", err)
 						return res, err
@@ -532,10 +545,7 @@ func (smtp SMTP) SendMailWithEmlOrAttach(eml string, header map[string]string, a
 			res = buf
 
 			text := "QUIT\r\n"
-			if smtp.Verbose {
-				fmt.Printf("> %s", text)
-			}
-			sendSmtp(conn, text)
+			sendSmtp(conn, text, smtp.Verbose)
 
 		} else if smtpStatus == CLOSE {
 			conn.Close()
@@ -554,11 +564,14 @@ func (s *SMTP) SetVerbose(v bool) {
 	s.Verbose = v
 }
 
-func sendSmtp(conn net.Conn, text string) error {
+func sendSmtp(conn net.Conn, text string, verbose bool) error {
 	_, err := conn.Write([]byte(text))
 	if err != nil {
 		fmt.Println(err)
 		return err
+	}
+	if verbose {
+		fmt.Printf("> %s", text)
 	}
 	return nil
 }
@@ -566,10 +579,11 @@ func sendSmtp(conn net.Conn, text string) error {
 func resCode(code string, sp step) (bool, error) {
 	switch sp {
 	case GREET:
+	case STARTTLS:
 		if code != "220" {
 			return false, nil
 		}
-	case HELO:
+	case EHELO:
 		if code != "250" {
 			return false, nil
 		}
