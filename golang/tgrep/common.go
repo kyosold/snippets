@@ -53,14 +53,13 @@ func Kscal(size int64) string {
 	var GB int64 = 1024 * 1024 * 1024
 	var MB int64 = 1024 * 1024
 	var KB int64 = 1024
-
 	var ret string
 	if size > GB {
-		ret = fmt.Sprintf("%.2f GB", float64(size/GB))
+		ret = fmt.Sprintf("%.2f GB", float64(size)/float64(GB))
 	} else if size > MB {
-		ret = fmt.Sprintf("%.2f MB", float64(size/MB))
+		ret = fmt.Sprintf("%.2f MB", float64(size)/float64(MB))
 	} else if size > KB {
-		ret = fmt.Sprintf("%.2f KB", float64(size/KB))
+		ret = fmt.Sprintf("%.2f KB", float64(size)/float64(KB))
 	} else {
 		ret = fmt.Sprintf("%.2f B", float64(size))
 	}
@@ -87,4 +86,35 @@ func GetFileContentType(file string) (string, error) {
 	// If no others seemed to match.
 	contentType := http.DetectContentType(buf)
 	return contentType, nil
+}
+
+func ConverMaothToIntFromString(month string) int {
+	month = strings.ToLower(month)
+	switch month {
+	case "jan":
+		return 1
+	case "feb":
+		return 2
+	case "mar":
+		return 3
+	case "apr":
+		return 4
+	case "may":
+		return 5
+	case "jun":
+		return 6
+	case "jul":
+		return 7
+	case "aug":
+		return 8
+	case "sep":
+		return 9
+	case "oct":
+		return 10
+	case "nov":
+		return 11
+	case "dec":
+		return 12
+	}
+	return 99
 }
