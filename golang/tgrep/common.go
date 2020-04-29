@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -43,12 +44,12 @@ func ReadLinesOffsetN(filename string, offset uint, n int) ([]string, error) {
 	return ret, nil
 }
 
-func getUUID() string {
+func GetUUID() string {
 	guid := xid.New()
 	return guid.String()
 }
 
-func kscal(size int64) string {
+func Kscal(size int64) string {
 	var GB int64 = 1024 * 1024 * 1024
 	var MB int64 = 1024 * 1024
 	var KB int64 = 1024
@@ -61,7 +62,29 @@ func kscal(size int64) string {
 	} else if size > KB {
 		ret = fmt.Sprintf("%.2f KB", float64(size/KB))
 	} else {
-		ret = fmt.Sprintf("%.2f B", size)
+		ret = fmt.Sprintf("%.2f B", float64(size))
 	}
 	return ret
+}
+
+func GetFileContentType(file string) (string, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	// Only the first 512 bytes are used to sniff the content type.
+	buf := make([]byte, 512)
+
+	_, err = f.Read(buf)
+	if err != nil {
+		return "", err
+	}
+
+	// Use the net/http package's handy DectectContentType function.
+	// Alway returns a valid content-type by returning "application/octet-stream"
+	// If no others seemed to match.
+	contentType := http.DetectContentType(buf)
+	return contentType, nil
 }

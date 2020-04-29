@@ -13,8 +13,8 @@ import (
 )
 
 type Matcher struct {
-	StartHour    string
-	EndHour      string
+	StartHour    int
+	EndHour      int
 	IgnoreCase   bool
 	Verbose      bool
 	Pattern      string
@@ -24,12 +24,17 @@ type Matcher struct {
 
 func usage(prog string) {
 	fmt.Println("Usage:")
-	fmt.Printf(" %s -st='15' -et='22' [pattern] [file]\n", prog)
+	fmt.Printf(" %s -st=15 -et=22 [pattern] [file]\n", prog)
 	fmt.Println("options:")
 	fmt.Printf("  -v 显示详细信息\n")
 	fmt.Printf("  -st 指定的小时时间开始查找\n")
 	fmt.Printf("  -et 指定的小时时间结束查找, 不写默认到文件结尾\n")
 	fmt.Printf("  -i 不区分大小写\n")
+	fmt.Println("Others:")
+	fmt.Printf("  1. 如果文件是gzip，先解压再查询，如:\n")
+	fmt.Printf("    gzip -dvc abc.0.gz > abc.0\n")
+	fmt.Printf("    tgrep -st=8 -et=10 'pattern' abc.0\n")
+	fmt.Println()
 }
 
 func main() {
@@ -41,21 +46,23 @@ func main() {
 		return
 	}
 
-	startTime := flag.String("st", "", "Start Hour")
-	endTime := flag.String("et", "", "End Hour")
+	// startTime := flag.String("st", "", "Start Hour")
+	// endTime := flag.String("et", "", "End Hour")
+	startTime := flag.Int("st", -1, "Start Hour")
+	endTime := flag.Int("et", -1, "End Hour")
 	ignoreCase := flag.Uint("i", 0, "Ignore Case")
 	verbose := flag.Uint("v", 0, "Verbose")
 
 	flag.Parse()
 
 	startIdx := 1
-	if len(*startTime) > 0 {
+	if *startTime > 0 {
 		startIdx++
 	} else {
 		usage(filepath.Base(os.Args[0]))
 		return
 	}
-	if len(*endTime) > 0 {
+	if *endTime > 0 {
 		startIdx++
 	}
 	if *ignoreCase > 0 {
@@ -101,8 +108,29 @@ func main() {
 
 	for _, file := range dir {
 		mr.File = file
-		wg.Add(1)
-		go searchV2(mr, &wg)
+
+		ct, err := GetFileContentType(mr.File)
+		if err != nil {
+			fmt.Println(file, " [Error]:", err)
+			continue
+		}
+
+		fmt.Println("  [", ct, "]:", mr.File)
+
+		ctlist := strings.Split(ct, "/")
+		cType := strings.ToLower(ctlist[0])
+		cSubType := strings.ToLower(ctlist[1])
+
+		if cType == "text" {
+			wg.Add(1)
+			go searchV2(mr, &wg)
+		} else if cType == "application" {
+			if cSubType == "x-gzip" {
+				fmt.Printf("[Error]: file:%s Is GZIP file\n", mr.File)
+				fmt.Printf("  Run 'gzip -dvc %s > tmp.log'\n", mr.File)
+			}
+		}
+
 	}
 
 	wg.Wait()
@@ -111,25 +139,25 @@ func main() {
 func searchV2(m Matcher, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	gid := getUUID()
+	gid := GetUUID()
 	if m.Verbose {
 		fmt.Printf("%s: %s \n", gid, m.File)
 	}
 
-	sHourInt, _ := strconv.Atoi(m.StartHour)
-	spos, err := getPos(m.File, sHourInt, 0, m.Verbose, gid)
+	// sHourInt := m.StartHour
+	spos, err := getPos(m.File, m.StartHour, 0, m.Verbose, gid)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	var epos int64 = 0
-	if len(m.EndHour) > 0 {
+	if m.EndHour > 0 {
 		if m.Verbose {
 			fmt.Println()
 		}
-		eHourInt, _ := strconv.Atoi(m.EndHour)
-		epos, err = getPos(m.File, eHourInt, 1, m.Verbose, gid)
+		// eHourInt, _ := m.EndHour
+		epos, err = getPos(m.File, m.EndHour, 1, m.Verbose, gid)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -151,7 +179,7 @@ func searchV2(m Matcher, wg *sync.WaitGroup) {
 	defer fp.Close()
 
 	fmt.Println("--------------------------")
-	fmt.Printf("  %s: Pattern Start:%d --- End:%d Need Read[%s]\n", gid, spos, epos, kscal(epos-spos))
+	fmt.Printf("  %s: Pattern Start:%d --- End:%d Need Read[%s]\n", gid, spos, epos, Kscal(epos-spos))
 	fmt.Println("--------------------------")
 	fmt.Println()
 
@@ -204,7 +232,6 @@ func getHourThisLine(line string) int {
 	lineHour := lineTimeList[0]
 	lineHourInt, _ := strconv.Atoi(lineHour)
 	return lineHourInt
-	// matchHourInt, _ := strconv.Atoi(m.StartHour)
 }
 
 func getLineTime(line string) (string, string, string) {
