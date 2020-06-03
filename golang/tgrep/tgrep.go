@@ -150,6 +150,8 @@ func main() {
 func search(m Matcher, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	bHourMatched := false
+
 	gid := GetUUID()
 	if m.Verbose > 0 {
 		fmt.Printf("%s: %s [%s]\n", gid, m.File, m.ContentType)
@@ -213,6 +215,15 @@ func search(m Matcher, wg *sync.WaitGroup) {
 			}
 			fmt.Println(gid, m.File, ":", err)
 			break
+		}
+
+		if bHourMatched == false {
+			lineTime := getLineTime(sline)
+			if m.StartHour != lineTime.Hour {
+				continue
+			} else {
+				bHourMatched = true
+			}
 		}
 
 		if m.IgnoreCase {
@@ -315,6 +326,9 @@ func getPos(f string, matchHour int, v int, gid string, flag int) (int64, LineTi
 				// lineTime = lineTimeLast
 				break
 			}
+			if spos == cpos {
+				break
+			}
 
 			// lineTimeLast = lineTime
 			spos = cpos
@@ -325,66 +339,75 @@ func getPos(f string, matchHour int, v int, gid string, flag int) (int64, LineTi
 
 		}
 	}
+	lineTimeLast = lineTime
 
 	step := int64(float64(epos-spos) * StepC)
 	if v > 0 {
 		fmt.Printf("  %s: Start Setp MatchHour[%d] LineHour:[%d] step:%d spos:%d --- epos:%d\n", gid, matchHour, lineTime.Hour, step, spos, epos)
 	}
 
-	cpos = spos + step
-	fp.Seek(cpos, os.SEEK_SET)
-	reader = bufio.NewReader(fp)
-	reader.ReadString('\n')
-	for {
-		sline, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			fmt.Println(gid, f, ":", err)
-			break
-		}
-
-		lineTime = getLineTime(sline)
-		if matchHour > lineTime.Hour { // 继续向下找
-			if v > 0 {
-				fmt.Printf("  %s: [STEP] MatchHour[%d] LineHour:[%d] cur:%d\n", gid, matchHour, lineTime.Hour, cpos)
-			}
-
-			if cpos > epos {
-				fmt.Printf("  %s: [SETP] E cpos(%d) > epos(%d), exit.\n", cpos, epos)
-				break
-			}
-
-			lineTimeLast = lineTime
-			cpos = cpos + step
-			fp.Seek(cpos, os.SEEK_SET)
-			reader = bufio.NewReader(fp)
-			reader.ReadString('\n')
-		} else {
-
-			if flag == 0 {
-				if v > 0 {
-					fmt.Printf("  %s: [STEP] E MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
-				}
-				cpos = cpos - step
-				lineTime = lineTimeLast
-				break
-			} else {
-				if matchHour < lineTime.Hour {
-					if v > 0 {
-						fmt.Printf("  %s: [STEP] E MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
-					}
+	if step > 100 {
+		cpos = spos + step
+		fp.Seek(cpos, os.SEEK_SET)
+		reader = bufio.NewReader(fp)
+		reader.ReadString('\n')
+		for {
+			sline, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
 					break
 				}
+				fmt.Println(gid, f, ":", err)
+				break
+			}
+
+			lineTime = getLineTime(sline)
+			if matchHour > lineTime.Hour { // 继续向下找
 				if v > 0 {
-					fmt.Printf("  %s: [STEP] MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+					fmt.Printf("  %s: [STEP] MatchHour[%d] LineHour:[%d] cur:%d\n", gid, matchHour, lineTime.Hour, cpos)
 				}
+
+				if cpos > epos {
+					fmt.Printf("  %s: [SETP] E cpos(%d) > epos(%d), exit.\n", cpos, epos)
+					break
+				}
+
+				lineTimeLast = lineTime
 				cpos = cpos + step
 				fp.Seek(cpos, os.SEEK_SET)
 				reader = bufio.NewReader(fp)
 				reader.ReadString('\n')
+			} else {
+
+				if flag == 0 {
+					if v > 0 {
+						fmt.Printf("  %s: [STEP] E MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+					}
+					cpos = cpos - step
+					lineTime = lineTimeLast
+					break
+				} else {
+					if matchHour < lineTime.Hour {
+						if v > 0 {
+							fmt.Printf("  %s: [STEP] E MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+						}
+						break
+					}
+					if v > 0 {
+						fmt.Printf("  %s: [STEP] MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+					}
+					cpos = cpos + step
+					fp.Seek(cpos, os.SEEK_SET)
+					reader = bufio.NewReader(fp)
+					reader.ReadString('\n')
+				}
 			}
+		}
+	} else {
+		if flag == 0 {
+			cpos = spos
+		} else {
+			cpos = epos
 		}
 	}
 
