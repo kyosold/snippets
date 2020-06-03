@@ -81,7 +81,7 @@ func main() {
 	if *ignoreCase > 0 {
 		startIdx++
 	}
-	if *verbose > 0 {
+	if *verbose >= 0 {
 		startIdx++
 	}
 
@@ -153,6 +153,7 @@ func search(m Matcher, wg *sync.WaitGroup) {
 	gid := GetUUID()
 	if m.Verbose > 0 {
 		fmt.Printf("%s: %s [%s]\n", gid, m.File, m.ContentType)
+		fmt.Println("--------------------------")
 	}
 
 	// Get start pos
