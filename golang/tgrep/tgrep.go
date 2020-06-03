@@ -16,7 +16,7 @@ type Matcher struct {
 	StartHour    int
 	EndHour      int
 	IgnoreCase   bool
-	Verbose      bool
+	Verbose      int
 	Pattern      string
 	File         string
 	ContentType  string
@@ -31,18 +31,24 @@ type LineTime struct {
 	Second int
 }
 
+const StepC float64 = 0.2
+
 func usage(prog string) {
+	fmt.Println("----------------------------------------------")
 	fmt.Println("Usage:")
 	fmt.Printf(" %s -st=15 -et=22 [pattern] [file]\n", prog)
+	fmt.Println()
 	fmt.Println("options:")
-	fmt.Printf("  -st 指定的小时时间开始查找\n")
-	fmt.Printf("  -et 指定的小时时间结束查找, 不写默认到文件结尾\n")
+	fmt.Printf("  -st 从指定的小时开始查找\n")
+	fmt.Printf("  -et 到指定的小时结束查找, 不写默认到文件结尾\n")
 	fmt.Printf("  -i 不区分大小写\n")
 	fmt.Printf("  -v 显示详细信息\n")
+	fmt.Println()
 	fmt.Println("Others:")
 	fmt.Printf("  1. 如果文件是gzip，先解压再查询，如:\n")
 	fmt.Printf("    gzip -dvc abc.0.gz > abc.0\n")
 	fmt.Printf("    tgrep -st=8 -et=10 'pattern' abc.0\n")
+	fmt.Println("----------------------------------------------")
 	fmt.Println()
 }
 
@@ -58,7 +64,7 @@ func main() {
 	startTime := flag.Int("st", -1, "Start Hour")
 	endTime := flag.Int("et", -1, "End Hour")
 	ignoreCase := flag.Uint("i", 0, "Ignore Case")
-	verbose := flag.Uint("v", 0, "Verbose")
+	verbose := flag.Int("v", 0, "Verbose")
 
 	flag.Parse()
 
@@ -82,25 +88,26 @@ func main() {
 	pattern = os.Args[startIdx]
 	dir = os.Args[startIdx+1:]
 
-	fmt.Println("****************************")
+	fmt.Println("**************************")
 	fmt.Println("Start Hour:", *startTime)
 	fmt.Println("End Hour:", *endTime)
 	fmt.Println("Ignore Case:", *ignoreCase)
 	fmt.Println("Verbose:", *verbose)
 	fmt.Println("Pattern:", pattern)
 	fmt.Println("Files:", dir)
-	fmt.Println("****************************")
+	fmt.Println("**************************")
 
 	mr := Matcher{}
 	mr.StartHour = *startTime
 	mr.EndHour = *endTime
 	mr.Pattern = pattern
 	mr.ShowFileName = false
-	if *verbose == 1 {
-		mr.Verbose = true
-	} else {
-		mr.Verbose = false
-	}
+	mr.Verbose = *verbose
+	// if *verbose == 1 {
+	// mr.Verbose = true
+	// } else {
+	// mr.Verbose = false
+	// }
 	if len(dir) > 1 {
 		mr.ShowFileName = true
 	}
@@ -129,41 +136,41 @@ func main() {
 
 		if cType == "text" {
 			wg.Add(1)
-			go searchV2(mr, &wg)
+			go search(mr, &wg)
 		} else if cType == "application" {
 			if cSubType == "x-gzip" {
 				fmt.Printf("[Error]: file:%s Is GZIP file\n", mr.File)
 				fmt.Printf("  Run 'gzip -dvc %s > tmp.log'\n", mr.File)
 			}
 		}
-
 	}
-
 	wg.Wait()
 }
 
-func searchV2(m Matcher, wg *sync.WaitGroup) {
+func search(m Matcher, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	gid := GetUUID()
-	if m.Verbose {
+	if m.Verbose > 0 {
 		fmt.Printf("%s: %s [%s]\n", gid, m.File, m.ContentType)
 	}
 
-	spos, slineTime, err := getPos(m.File, m.StartHour, 0, m.Verbose, gid)
+	// Get start pos
+	spos, slineTime, err := getPos(m.File, m.StartHour, m.Verbose, gid, 0)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	// fmt.Println("Start Pos:", spos, "LineTime:", slineTime)
 
+	// Get end pos
 	var epos int64 = 0
 	var elineTime LineTime
 	if m.EndHour > 0 {
-		if m.Verbose {
+		if m.Verbose > 0 {
 			fmt.Println()
 		}
-		// eHourInt, _ := m.EndHour
-		epos, elineTime, err = getPos(m.File, m.EndHour, 1, m.Verbose, gid)
+		epos, elineTime, err = getPos(m.File, m.EndHour, m.Verbose, gid, 1)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -176,6 +183,7 @@ func searchV2(m Matcher, wg *sync.WaitGroup) {
 		}
 		epos = fileInfo.Size()
 	}
+	// fmt.Println("End Pos:", spos, "LineTime:", slineTime)
 
 	fp, err := os.Open(m.File)
 	if err != nil {
@@ -185,8 +193,8 @@ func searchV2(m Matcher, wg *sync.WaitGroup) {
 	defer fp.Close()
 
 	fmt.Println("--------------------------")
-	fmt.Printf("  %s: Pattern Start:[%s][%d:%d] --- End:[%s][%d:%d] Need Read[%s]\n",
-		gid, Kscal(spos), slineTime.Hour, slineTime.Minute, Kscal(epos), elineTime.Hour, elineTime.Minute, Kscal(epos-spos))
+	fmt.Printf("%s: Pattern Start:[%d][%d:%d] --- End:[%d][%d:%d] Need Read[%s]\n",
+		gid, spos, slineTime.Hour, slineTime.Minute, epos, elineTime.Hour, elineTime.Minute, Kscal(epos-spos))
 	fmt.Println("--------------------------")
 	fmt.Println()
 
@@ -233,6 +241,155 @@ func searchV2(m Matcher, wg *sync.WaitGroup) {
 	}
 }
 
+// flag: 0: 取 matchHour 前面pos； 1：取 matchHour 后面的pos
+func getPos(f string, matchHour int, v int, gid string, flag int) (int64, LineTime, error) {
+	// resPos := int64(0)
+	isA := false
+	isB := false
+	var lineTime LineTime
+	var lineTimeLast LineTime
+
+	fileInfo, err := os.Stat(f)
+	if err != nil {
+		return 0, lineTime, err
+	}
+	if fileInfo.Size() <= 0 {
+		return 0, lineTime, nil
+	}
+
+	fp, err := os.Open(f)
+	if err != nil {
+		return 0, lineTime, err
+	}
+	defer fp.Close()
+
+	spos := int64(0)
+	epos := fileInfo.Size()
+	cpos := epos / 2
+
+	// if v > 0 {
+	// fmt.Printf("  %s: start:%d cur:%d filesize:%d\n", gid, spos, cpos, epos)
+	// }
+	fp.Seek(cpos, os.SEEK_SET)
+	reader := bufio.NewReader(fp)
+	reader.ReadString('\n') // 为了下一行是完整行
+	for {
+		sline, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println(gid, f, ":", err)
+			break
+		}
+
+		lineTime = getLineTime(sline)
+		if matchHour <= lineTime.Hour { // 在上面
+			isA = true
+			if v > 0 {
+				fmt.Printf("  %s: A MatchHour[%d] LineHour:[%d] start:%d cur:%d end:%d\n", gid, matchHour, lineTime.Hour, spos, cpos, epos)
+			}
+
+			if isB {
+				epos = cpos
+				// lineTime = lineTimeLast
+				break
+			}
+
+			// lineTimeLast = lineTime
+			epos = cpos
+			cpos = epos / 2
+			fp.Seek(cpos, os.SEEK_SET)
+			reader = bufio.NewReader(fp)
+			reader.ReadString('\n')
+
+		} else if matchHour > lineTime.Hour { // 在下面
+			isB = true
+			if v > 0 {
+				fmt.Printf("  %s: B MatchHour[%d] LineHour:[%d] start:%d cur:%d end:%d\n", gid, matchHour, lineTime.Hour, spos, cpos, epos)
+			}
+
+			if isA {
+				spos = cpos
+				// lineTime = lineTimeLast
+				break
+			}
+
+			// lineTimeLast = lineTime
+			spos = cpos
+			cpos = (epos-cpos)/2 + cpos
+			fp.Seek(cpos, os.SEEK_SET)
+			reader = bufio.NewReader(fp)
+			reader.ReadString('\n')
+
+		}
+	}
+
+	step := int64(float64(epos-spos) * StepC)
+	if v > 0 {
+		fmt.Printf("  %s: Start Setp MatchHour[%d] LineHour:[%d] step:%d spos:%d --- epos:%d\n", gid, matchHour, lineTime.Hour, step, spos, epos)
+	}
+
+	cpos = spos + step
+	fp.Seek(cpos, os.SEEK_SET)
+	reader = bufio.NewReader(fp)
+	reader.ReadString('\n')
+	for {
+		sline, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println(gid, f, ":", err)
+			break
+		}
+
+		lineTime = getLineTime(sline)
+		if matchHour > lineTime.Hour { // 继续向下找
+			if v > 0 {
+				fmt.Printf("  %s: [STEP] MatchHour[%d] LineHour:[%d] cur:%d\n", gid, matchHour, lineTime.Hour, cpos)
+			}
+
+			if cpos > epos {
+				fmt.Printf("  %s: [SETP] E cpos(%d) > epos(%d), exit.\n", cpos, epos)
+				break
+			}
+
+			lineTimeLast = lineTime
+			cpos = cpos + step
+			fp.Seek(cpos, os.SEEK_SET)
+			reader = bufio.NewReader(fp)
+			reader.ReadString('\n')
+		} else {
+
+			if flag == 0 {
+				if v > 0 {
+					fmt.Printf("  %s: [STEP] E MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+				}
+				cpos = cpos - step
+				lineTime = lineTimeLast
+				break
+			} else {
+				if matchHour < lineTime.Hour {
+					if v > 0 {
+						fmt.Printf("  %s: [STEP] E MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+					}
+					break
+				}
+				if v > 0 {
+					fmt.Printf("  %s: [STEP] MatchHour[%d] LineHour:[%d] cpos:%d\n", gid, matchHour, lineTime.Hour, cpos)
+				}
+				cpos = cpos + step
+				fp.Seek(cpos, os.SEEK_SET)
+				reader = bufio.NewReader(fp)
+				reader.ReadString('\n')
+			}
+		}
+	}
+
+	return cpos, lineTime, nil
+}
+
 func getLineTime(line string) LineTime {
 	month := ""
 	day := ""
@@ -241,7 +398,6 @@ func getLineTime(line string) LineTime {
 	ret := LineTime{}
 	x := 0
 	for i := 0; i < len(line); i++ {
-
 		if x == 0 {
 			month = month + string(line[i])
 		} else if x == 1 {
@@ -264,8 +420,7 @@ func getLineTime(line string) LineTime {
 			continue
 		}
 	}
-
-	ret.Month = ConverMaothToIntFromString(month)
+	ret.Month = ConverMonthToIntFromString(month)
 	ret.Day, _ = strconv.Atoi(day)
 
 	timeList := strings.Split(time, ":")
@@ -274,96 +429,4 @@ func getLineTime(line string) LineTime {
 	ret.Second, _ = strconv.Atoi(timeList[2])
 
 	return ret
-	// return date, day, time
-}
-
-// t: 0 start, 1 end
-func getPos(f string, matchHour int, t int, v bool, gid string) (int64, LineTime, error) {
-	resPos := int64(0)
-	isA := false
-	isB := false
-	var lineTime LineTime
-
-	fileInfo, err := os.Stat(f)
-	if err != nil {
-		return 0, lineTime, err
-	}
-	if fileInfo.Size() <= 0 {
-		return 0, lineTime, nil
-	}
-
-	fp, err := os.Open(f)
-	if err != nil {
-		return 0, lineTime, err
-	}
-	defer fp.Close()
-
-	soffset := int64(0)
-	eoffset := fileInfo.Size()
-	coffset := eoffset / 2
-
-	if v {
-		fmt.Printf("  %s: start:%d cur:%d filesize:%d\n", gid, soffset, coffset, eoffset)
-	}
-
-	fp.Seek(coffset, os.SEEK_SET)
-	reader := bufio.NewReader(fp)
-	reader.ReadString('\n') // 为了下一行为完整行
-	for {
-		sline, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				//fmt.Println(gid, "---EOF---")
-				break
-			}
-			fmt.Println(gid, f, ":", err)
-			break
-		}
-
-		lineTime = getLineTime(sline)
-		if lineTime.Hour > matchHour {
-			isA = true
-			eoffset = coffset
-			coffset = coffset / 2
-			fp.Seek(coffset, os.SEEK_SET)
-			reader = bufio.NewReader(fp)
-			reader.ReadString('\n')
-
-			if v {
-				fmt.Printf("  %s: A MatchHour[%d] LineHour:[%d] start:%d cur:%d end:%d\n", gid, matchHour, lineTime.Hour, soffset, coffset, eoffset)
-			}
-			if isB && isA {
-				// resPos = soffset
-				break
-			}
-		} else if lineTime.Hour < matchHour {
-			isB = true
-			soffset = coffset
-			coffset = (eoffset-soffset)/2 + coffset
-			fp.Seek(coffset, os.SEEK_SET)
-			reader = bufio.NewReader(fp)
-			reader.ReadString('\n')
-
-			if v {
-				fmt.Printf("  %s: B MatchHour[%d] LineHour:[%d] start:%d cur:%d end:%d\n", gid, matchHour, lineTime.Hour, soffset, coffset, eoffset)
-			}
-			if soffset == coffset {
-				break
-			}
-			if isA && isB {
-				// resPos = eoffset
-				break
-			}
-		} else {
-			break
-		}
-	}
-
-	if t == 0 {
-		resPos = soffset
-	} else {
-		resPos = eoffset
-	}
-
-	return resPos, lineTime, nil
 }
