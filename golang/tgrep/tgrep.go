@@ -69,13 +69,13 @@ func main() {
 	flag.Parse()
 
 	startIdx := 1
-	if *startTime > 0 {
+	if *startTime >= 0 {
 		startIdx++
 	} else {
 		usage(filepath.Base(os.Args[0]))
 		return
 	}
-	if *endTime > 0 {
+	if *endTime >= 0 {
 		startIdx++
 	}
 	if *ignoreCase > 0 {
@@ -103,11 +103,7 @@ func main() {
 	mr.Pattern = pattern
 	mr.ShowFileName = false
 	mr.Verbose = *verbose
-	// if *verbose == 1 {
-	// mr.Verbose = true
-	// } else {
-	// mr.Verbose = false
-	// }
+
 	if len(dir) > 1 {
 		mr.ShowFileName = true
 	}
@@ -116,6 +112,11 @@ func main() {
 		mr.Pattern = strings.ToLower(pattern)
 	} else {
 		mr.IgnoreCase = false
+	}
+
+	if mr.EndHour < mr.StartHour {
+		fmt.Println("Error: End Hour Can't More Than Start Hour")
+		return
 	}
 
 	var wg sync.WaitGroup
@@ -164,12 +165,13 @@ func search(m Matcher, wg *sync.WaitGroup) {
 		fmt.Println(err)
 		return
 	}
+
 	// fmt.Println("Start Pos:", spos, "LineTime:", slineTime)
 
 	// Get end pos
 	var epos int64 = 0
 	var elineTime LineTime
-	if m.EndHour > 0 {
+	if m.EndHour >= 0 {
 		if m.Verbose > 0 {
 			fmt.Println()
 		}
@@ -205,6 +207,8 @@ func search(m Matcher, wg *sync.WaitGroup) {
 	reader := bufio.NewReader(fp)
 	if spos > 0 {
 		reader.ReadString('\n')
+	} else if spos == 0 {
+		bHourMatched = true
 	}
 	for {
 		sline, err := reader.ReadString('\n')
@@ -279,9 +283,17 @@ func getPos(f string, matchHour int, v int, gid string, flag int) (int64, LineTi
 	epos := fileInfo.Size()
 	cpos := epos / 2
 
-	// if v > 0 {
-	// fmt.Printf("  %s: start:%d cur:%d filesize:%d\n", gid, spos, cpos, epos)
-	// }
+	if matchHour == 0 && flag == 0 {
+		// 从0开始
+		reader := bufio.NewReader(fp)
+		sline, _ := reader.ReadString('\n') // 为了下一行是完整行
+		lineTime = getLineTime(sline)
+		if v > 0 {
+			fmt.Printf("  %s: Z MatchHour[%d] LineHour:[%d] start:0\n", gid, matchHour, lineTime.Hour)
+		}
+		return 0, lineTime, nil
+	}
+
 	fp.Seek(cpos, os.SEEK_SET)
 	reader := bufio.NewReader(fp)
 	reader.ReadString('\n') // 为了下一行是完整行
@@ -302,12 +314,20 @@ func getPos(f string, matchHour int, v int, gid string, flag int) (int64, LineTi
 				fmt.Printf("  %s: A MatchHour[%d] LineHour:[%d] start:%d cur:%d end:%d\n", gid, matchHour, lineTime.Hour, spos, cpos, epos)
 			}
 
+			if matchHour == 0 && flag == 1 && lineTime.Hour == 0 {
+				// 修正: et 为0的情况
+				lineTime = lineTimeLast
+				break
+			}
+
 			if isB {
 				epos = cpos
 				// lineTime = lineTimeLast
 				break
 			}
-
+			if cpos == epos {
+				break
+			}
 			// lineTimeLast = lineTime
 			epos = cpos
 			cpos = epos / 2
