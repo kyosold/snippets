@@ -14,5 +14,11 @@ $(OBJ): tgrep.o utils.o xmalloc.o
 %.o: %.c
 	$(SHLD) -c $<
 
+install:
+	cp $(OBJ) /usr/bin/
+
+uninstall:
+	rm -f /usr/bin/$(OBJ)
+
 clean:
 	rm -f *.o $(OBJ)
