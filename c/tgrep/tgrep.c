@@ -183,11 +183,7 @@ int get_pos(char *file, int match_hour, int v, int flag, struct ret_pos_t *retpo
         }
         retpos->pos = 0;
         copy_linetime(&retpos->linetime, &linetime);
-        // retpos->linetime.month = linetime.month;
-        // retpos->linetime.day = linetime.day;
-        // retpos->linetime.hour = linetime.hour;
-        // retpos->linetime.minute = linetime.minute;
-        // retpos->linetime.second = linetime.second;
+
 
         goto SUCC_EXIT;
     }
@@ -206,11 +202,7 @@ int get_pos(char *file, int match_hour, int v, int flag, struct ret_pos_t *retpo
             if (match_hour == 0 && flag == 1 && linetime.hour == 0) {
                 // 修正: -e 为0的情况
                 copy_linetime(&linetime, &linetime_last);
-                // linetime.month = linetime_last.month;
-                // linetime.day = linetime_last.day;
-                // linetime.hour = linetime_last.hour;
-                // linetime.minute = linetime_last.minute;
-                // linetime.second = linetime_last.second;
+
                 break;
             }
 
@@ -248,23 +240,16 @@ int get_pos(char *file, int match_hour, int v, int flag, struct ret_pos_t *retpo
         }
 
         copy_linetime(&linetime_last, &linetime);
-        // linetime_last.month = linetime.month;
-        // linetime_last.day = linetime.day;
-        // linetime_last.hour = linetime.hour;
-        // linetime_last.minute = linetime.minute;
-        // linetime_last.second = linetime.second;
+;
     }
     if (feof(fp)) {
+        retpos->pos = epos;
+        copy_linetime(&linetime_last, &linetime);
         printf("---EOF---\n");
         goto SUCC_EXIT;
     }
 
     copy_linetime(&linetime_last, &linetime);
-    // linetime_last.month = linetime.month;
-    // linetime_last.day = linetime.day;
-    // linetime_last.hour = linetime.hour;
-    // linetime_last.minute = linetime.minute;
-    // linetime_last.second = linetime.second;
 
     long step = (float)(epos - spos) * step_c;
     if (v > 0) {
@@ -326,11 +311,6 @@ int get_pos(char *file, int match_hour, int v, int flag, struct ret_pos_t *retpo
 
     retpos->pos = cpos;
     copy_linetime(&retpos->linetime, &linetime);
-    // retpos->linetime.month = linetime.month;
-    // retpos->linetime.day = linetime.day;
-    // retpos->linetime.hour = linetime.hour;
-    // retpos->linetime.minute = linetime.minute;
-    // retpos->linetime.second = linetime.second;
 
     goto SUCC_EXIT;
 
