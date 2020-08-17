@@ -26,11 +26,14 @@
 @property (weak) IBOutlet NSScrollView *bodyScrollView;
 @property (unsafe_unretained) IBOutlet NSTextView *bodyTextView;
 
+@property (weak) IBOutlet NSButton *replaceHeadFieldCheckBox;
 
 @property (weak) IBOutlet NSPopUpButton *protocalPopUpButton;
 @property (weak) IBOutlet NSPopUpButton *cryptoPopUpButton;
 @property (weak) IBOutlet NSTextField *sslPeerNameTextField;
 
+@property (weak) IBOutlet NSPopUpButton *replaceHeadFieldPopUpButton;
+- (IBAction)clickReplaceHeadFieldAction:(id)sender;
 
 
 - (IBAction)clickCryptoPopUpButton:(id)sender;
@@ -67,6 +70,8 @@
 
 
 -(void)doubleClickForTableViewCell:(id)sender;
+
+- (NSString *)generateTradeNO;
 
 @end
 

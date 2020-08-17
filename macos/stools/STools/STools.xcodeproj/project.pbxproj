@@ -19,6 +19,8 @@
 		5627A4F524D9452D0013D590 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5627A4F424D9452D0013D590 /* Cocoa.framework */; };
 		5627A4F724D945390013D590 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5627A4F624D945390013D590 /* Security.framework */; };
 		5627A5B424DD04E90013D590 /* DumpTableViewData.m in Sources */ = {isa = PBXBuildFile; fileRef = 5627A5B324DD04E90013D590 /* DumpTableViewData.m */; };
+		5629F3EB24E66EA40004D170 /* CryptoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5629F3EA24E66EA40004D170 /* CryptoViewController.m */; };
+		5629F3ED24E66FF50004D170 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5629F3EC24E66FF50004D170 /* CryptoKit.framework */; };
 		5663134824E55BA20029440E /* CodeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5663134724E55BA20029440E /* CodeViewController.m */; };
 /* End PBXBuildFile section */
 
@@ -64,6 +66,9 @@
 		5627A4F624D945390013D590 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		5627A5B224DD04E90013D590 /* DumpTableViewData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DumpTableViewData.h; sourceTree = "<group>"; };
 		5627A5B324DD04E90013D590 /* DumpTableViewData.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DumpTableViewData.m; sourceTree = "<group>"; };
+		5629F3E924E66EA40004D170 /* CryptoViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CryptoViewController.h; sourceTree = "<group>"; };
+		5629F3EA24E66EA40004D170 /* CryptoViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CryptoViewController.m; sourceTree = "<group>"; };
+		5629F3EC24E66FF50004D170 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
 		5663134624E55BA20029440E /* CodeViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CodeViewController.h; sourceTree = "<group>"; };
 		5663134724E55BA20029440E /* CodeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CodeViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -75,6 +80,7 @@
 			files = (
 				5627A4F724D945390013D590 /* Security.framework in Frameworks */,
 				5627A4F524D9452D0013D590 /* Cocoa.framework in Frameworks */,
+				5629F3ED24E66FF50004D170 /* CryptoKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,6 +139,8 @@
 				5627A5B324DD04E90013D590 /* DumpTableViewData.m */,
 				5663134624E55BA20029440E /* CodeViewController.h */,
 				5663134724E55BA20029440E /* CodeViewController.m */,
+				5629F3E924E66EA40004D170 /* CryptoViewController.h */,
+				5629F3EA24E66EA40004D170 /* CryptoViewController.m */,
 			);
 			path = STools;
 			sourceTree = "<group>";
@@ -169,6 +177,7 @@
 		5627A4F324D9452D0013D590 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5629F3EC24E66FF50004D170 /* CryptoKit.framework */,
 				5627A4F624D945390013D590 /* Security.framework */,
 				5627A4F424D9452D0013D590 /* Cocoa.framework */,
 			);
@@ -305,6 +314,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5627A4E624D92FE70013D590 /* GCDAsyncSocket.m in Sources */,
+				5629F3EB24E66EA40004D170 /* CryptoViewController.m in Sources */,
 				5627A4E924D9303D0013D590 /* GCDAsyncUdpSocket.m in Sources */,
 				5627A4A524D8292A0013D590 /* ViewController.m in Sources */,
 				5627A4AD24D8292B0013D590 /* main.m in Sources */,

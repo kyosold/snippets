@@ -16,6 +16,7 @@
 
 @synthesize smtpWC;
 @synthesize codecWC;
+@synthesize cryptoWC;
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     // Insert code here to initialize your application
@@ -32,6 +33,10 @@
     codecWC = [storyBoard instantiateControllerWithIdentifier:@"CodecWindowController"];
     codecWC.window.delegate = self;
     self.codecMenuItem.state = NSControlStateValueOff;
+    
+    cryptoWC = [storyBoard instantiateControllerWithIdentifier:@"CryptoWindowController"];
+    cryptoWC.window.delegate = self;
+    self.cryptoMenuItem.state = NSControlStateValueOff;
 
 }
 
@@ -54,6 +59,9 @@
     } else if ([sender isEqual:codecWC.window]) {
         NSLog(@"Close Codec Window");
         self.codecMenuItem.state = NSControlStateValueOff;
+    } else if ([sender isEqual:cryptoWC.window]) {
+        NSLog(@"Close Crypto Window");
+        self.cryptoMenuItem.state = NSControlStateValueOff;
     } else {
         NSLog(@"Close Window");
     }
@@ -75,6 +83,12 @@
     self.codecMenuItem.state = NSControlStateValueOn;
     [codecWC showWindow:self];
 }
+// 打开加密窗口
+- (IBAction)openCryptoWindow:(id)sender {
+    self.cryptoMenuItem.state = NSControlStateValueOn;
+    [cryptoWC showWindow:self];
+}
+
 
 
 @end

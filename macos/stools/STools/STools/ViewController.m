@@ -63,6 +63,8 @@ BOOL isTLSSocket = NO;
     NSString *protocol = [iniDict objectForKey:@"protocol"];
     NSString *crypto = [iniDict objectForKey:@"crypto"];
     NSString *sslPeerName = [iniDict objectForKey:@"sslPeerName"];
+    NSString *isRepaceHF = [iniDict objectForKey:@"isReplaceHF"];
+    NSString *replaceHF = [iniDict objectForKey:@"replaceHF"];
     NSString *body = [iniDict objectForKey:@"body"];
     
     _ipTextField.stringValue = ip ? : @"";
@@ -92,13 +94,20 @@ BOOL isTLSSocket = NO;
     }
     _sslPeerNameTextField.stringValue = sslPeerName ? : @"";
     
+    if ([isRepaceHF isEqualToString:@"yes"]) {
+        _replaceHeadFieldCheckBox.state = NSControlStateValueOn;
+        _replaceHeadFieldPopUpButton.enabled = YES;
+    } else {
+        _replaceHeadFieldCheckBox.state = NSControlStateValueOff;
+        _replaceHeadFieldPopUpButton.enabled = NO;
+    }
+    _replaceHeadFieldPopUpButton.title = replaceHF;
     _bodyTextView.string = body ? : @"";
 }
 
 
 - (void)setRepresentedObject:(id)representedObject {
     [super setRepresentedObject:representedObject];
-
     // Update the view, if already loaded.
 }
 
@@ -127,7 +136,7 @@ BOOL isTLSSocket = NO;
     [self.rowData removeAllObjects];
     [_dumpTableView reloadData];
     // 定位光标到新添加的行
-    [self.dumpTableView editColumn:0 row:0 withEvent:nil select:YES];
+//    [self.dumpTableView editColumn:0 row:0 withEvent:nil select:YES];
 }
 
 - (IBAction)sendButtonAction:(id)sender {
@@ -166,6 +175,12 @@ BOOL isTLSSocket = NO;
     
     NSString *sslPeerName = _sslPeerNameTextField.stringValue;
     sslPeerName = [sslPeerName stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    
+    NSString *isReplaceHF = @"no";
+    if (_replaceHeadFieldCheckBox.state == YES) {
+        isReplaceHF = @"yes";
+    }
+    NSString *replaceHF = _replaceHeadFieldPopUpButton.titleOfSelectedItem;
     
     NSString *body = _bodyTextView.string;
     
@@ -207,6 +222,8 @@ BOOL isTLSSocket = NO;
     [args setValue:protocol forKey:@"protocol"];
     [args setValue:crypto forKey:@"crypto"];
     [args setValue:sslPeerName forKey:@"sslPeerName"];
+    [args setValue:isReplaceHF forKey:@"isReplaceHF"];
+    [args setValue:replaceHF forKey:@"replaceHF"];
     [args setValue:body forKey:@"body"];
     
     [self saveConfigINIWithDict:[NSDictionary dictionaryWithDictionary:args]];
@@ -546,6 +563,7 @@ BOOL isTLSSocket = NO;
         readState = DATA;
         
     } else if (tag == DATA) {
+        BOOL isHead = YES;
         NSArray *bodyList = [_bodyTextView.string componentsSeparatedByString:@"\n"];
         NSMutableString *newBodyString = [[NSMutableString alloc] init];
         for (int i=0; i<bodyList.count; i++) {
@@ -554,11 +572,39 @@ BOOL isTLSSocket = NO;
                 [newBodyString appendString:@"\n"];
                 continue;
             }
+            
+            if (isHead) {
+                if (_replaceHeadFieldCheckBox.state == NSControlStateValueOn) {
+                    NSArray *headItem = [bodyList[i] componentsSeparatedByString:@":"];
+                    if (headItem.count > 1) {
+                        if ([headItem[0] caseInsensitiveCompare:_replaceHeadFieldPopUpButton.titleOfSelectedItem] == NSOrderedSame) {
+                            if ([_replaceHeadFieldPopUpButton.titleOfSelectedItem caseInsensitiveCompare:@"message-id"] == NSOrderedSame) {
+                                NSString *messageid = [self generateTradeNO];
+                                [newBodyString appendFormat:@"Message-ID: %@\n", messageid];
+                                isHead = NO;
+                                continue;
+                            } else if ([_replaceHeadFieldPopUpButton.titleOfSelectedItem caseInsensitiveCompare:@"Date"] == NSOrderedSame) {
+                                NSDate *now = [NSDate date];
+                                NSDateFormatter *dateFmt = [[NSDateFormatter alloc] init];
+                                [dateFmt setDateFormat:@"EEE, d MMM yyyy HH:mm:ss ZZZ"];
+                                NSString *nowDate = [dateFmt stringFromDate:now];
+                                [newBodyString appendFormat:@"Date: %@\n", nowDate];
+                                isHead = NO;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            
             unichar ch = [bodyList[i] characterAtIndex:0];
             NSLog(@"ch=(%c)", ch);
             if (ch == '.') {
                 [newBodyString appendFormat:@".%@\n", bodyList[i]];
             } else {
+                if (isHead && [bodyList[i] length] == 1 && ch == '\r') {
+                    isHead = NO;
+                }
                 [newBodyString appendFormat:@"%@\n", bodyList[i]];
             }
         }
@@ -631,6 +677,14 @@ BOOL isTLSSocket = NO;
     } else {
         _sslPeerNameTextField.editable = YES;
         _sslPeerNameTextField.backgroundColor = [NSColor clearColor];
+    }
+}
+
+- (IBAction)clickReplaceHeadFieldAction:(id)sender {
+    if (_replaceHeadFieldCheckBox.state == NSControlStateValueOn) {
+        _replaceHeadFieldPopUpButton.enabled = YES;
+    } else {
+        _replaceHeadFieldPopUpButton.enabled = NO;
     }
 }
 
@@ -791,6 +845,30 @@ BOOL isTLSSocket = NO;
     return YES;
 }
 
+
+//生成随机数算法 ,随机字符串，不长于32位
+//微信支付API接口协议中包含字段nonce_str，主要保证签名不可预测。
+//我们推荐生成随机数算法如下：调用随机数函数生成，将得到的值转换为字符串。
+- (NSString *)generateTradeNO
+{
+    static int kNumber = 15;
+    NSString *sourceStr = @"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    NSMutableString *resultStr = [[NSMutableString alloc] init];
+    
+    //  srand函数是初始化随机数的种子，为接下来的rand函数调用做准备。
+    //  time(0)函数返回某一特定时间的小数值。
+    //  这条语句的意思就是初始化随机数种子，time函数是为了提高随机的质量（也就是减少重复）而使用的。
+    
+    //　srand(time(0)) 就是给这个算法一个启动种子，也就是算法的随机种子数，有这个数以后才可以产生随机数,用1970.1.1至今的秒数，初始化随机数种子。
+    //　Srand是种下随机种子数，你每回种下的种子不一样，用Rand得到的随机数就不一样。为了每回种下一个不一样的种子，所以就选用Time(0)，Time(0)是得到当前时时间值（因为每时每刻时间是不一样的了）。
+    srand((unsigned)time(0));
+    for (int i=0; i < kNumber; i++) {
+        unsigned index = rand() % [sourceStr length];
+        NSString *oneStr = [sourceStr substringWithRange:NSMakeRange(index, 1)];
+        [resultStr appendString:oneStr];
+    }
+    return resultStr;;
+}
 
 
 @end

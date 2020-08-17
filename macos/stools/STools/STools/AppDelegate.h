@@ -13,9 +13,12 @@
 
 @property (weak) IBOutlet NSMenuItem *smtpMenuItem;
 @property (weak) IBOutlet NSMenuItem *codecMenuItem;
+@property (weak) IBOutlet NSMenuItem *cryptoMenuItem;
+
 
 @property NSWindowController *smtpWC;
 @property NSWindowController *codecWC;
+@property NSWindowController *cryptoWC;
 
 @end
 
