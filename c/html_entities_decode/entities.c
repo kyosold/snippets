@@ -287,13 +287,13 @@ static size_t putc_utf8(unsigned long cp, char *buffer)
     unsigned char *bytes = (unsigned char *)buffer;
 
     if(cp <= 0x007Ful)
-    {
+    {   // cp <= 127
         bytes[0] = (unsigned char)cp;
         return 1;
     }
 
     if(cp <= 0x07FFul)
-    {
+    {   // cp <= 2047
         bytes[1] = (unsigned char)((2 << 6) | (cp & 0x3F));
         bytes[0] = (unsigned char)((6 << 5) | (cp >> 6));
         return 2;
