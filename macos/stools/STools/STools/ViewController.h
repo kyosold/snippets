@@ -40,8 +40,8 @@
 
 @property (weak) IBOutlet NSButton *sendButton;
 
-@property NSMutableArray *rowData;
-@property (weak) IBOutlet NSTableView *dumpTableView;
+//@property NSMutableArray *rowData;
+//@property (weak) IBOutlet NSTableView *dumpTableView;
 @property (unsafe_unretained) IBOutlet NSTextView *dumpTextView;
 
 - (void)dieConnect;
@@ -65,7 +65,11 @@
 
 // type:
 //  "ME", "OTHER"
-- (void)dumpTableViewAppendString:(NSString *)str withType:(NSString *)type;
+//- (void)dumpTableViewAppendString:(NSString *)str withType:(NSString *)type;
+
+// type:
+//  "ME", "ERROR", "NOTICE", "OTHER"
+- (void)dumpTextViewAppendString:(NSString *)str withType:(NSString *)type;
 
 - (NSColor *)getColorFromRGB:(unsigned char)r green:(unsigned char)g blue:(unsigned char)b;
 

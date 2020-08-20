@@ -8,7 +8,6 @@
 
 #import "ViewController.h"
 
-//#import "TcpAppDelegate.h"
 
 typedef enum {
     GREET = 100,
@@ -685,6 +684,26 @@ BOOL isTLSSocket = NO;
     NSString *filePath = [iniPath stringByAppendingPathComponent:@"stools.plist"];
     NSDictionary *dict = [NSDictionary dictionaryWithContentsOfFile:filePath];
     NSLog(@"Read Ini %@:\n%@", filePath, dict);
+    
+    if (dict == nil) {
+        NSMutableDictionary *args = [NSMutableDictionary dictionary];
+        [args setValue:@"" forKey:@"ip"];
+        [args setValue:@"" forKey:@"port"];
+        [args setValue:@"" forKey:@"isAuth"];
+        [args setValue:@"" forKey:@"user"];
+        [args setValue:@"" forKey:@"password"];
+        [args setValue:@"" forKey:@"envFrom"];
+        [args setValue:@"" forKey:@"envTo"];
+        [args setValue:@"SMTP" forKey:@"protocol"];
+        [args setValue:@"No Crypto" forKey:@"crypto"];
+        [args setValue:@"" forKey:@"sslPeerName"];
+        [args setValue:@"" forKey:@"isReplaceHF"];
+        [args setValue:@"Date" forKey:@"replaceHF"];
+        [args setValue:@"" forKey:@"body"];
+        
+        dict = [[NSMutableDictionary alloc] initWithDictionary:args];
+    }
+    
     return dict;
 }
 
@@ -733,28 +752,6 @@ BOOL isTLSSocket = NO;
 
 
 
-- (void)dumpTableViewAppendString:(NSString *)str withType:(NSString *)type
-{
-    NSArray *strList = [str componentsSeparatedByString:@"\n"];
-    for (NSInteger i=0; i<strList.count; i++) {
-        if ([strList[i] length] <= 0) continue;
-        if ([strList[i] characterAtIndex:0] == '\r') continue;
-        
-        NSMutableDictionary *msg = [[NSMutableDictionary alloc] init];
-        [msg setValue:strList[i] forKey:@"text"];
-        [msg setValue:type forKey:@"type"];
-        [self.rowData addObject:msg];
-    }
-
-    [self.dumpTableView reloadData];
-    
-    NSInteger numberOfRows = self.dumpTableView.numberOfRows;
-    if (numberOfRows > 0)
-        [self.dumpTableView scrollRowToVisible:(numberOfRows - 1)];
-    
-    // 定位光标到新添加的行
-    [self.dumpTableView editColumn:0 row:(self.rowData.count - 1) withEvent:nil select:YES];
-}
 
 
 - (void)dumpTextViewAppendString:(NSString *)str withType:(NSString *)type
@@ -779,59 +776,60 @@ BOOL isTLSSocket = NO;
         [attributedString addAttribute:NSForegroundColorAttributeName value:[self getColorFromRGB:151 green:224 blue:206] range:NSMakeRange(0, str.length)];
     }
     
-    [_dumpTextView insertText:attributedString];
+//    [_dumpTextView insertText:attributedString];
+    [_dumpTextView insertText:attributedString replacementRange:NSMakeRange(_dumpTextView.string.length, 0)];
 }
 
 #pragma NSTableView Delegate
 
-// 返回数据行数
-- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView
-{
-    return self.rowData.count;
-}
-
-// 返回row对应的自定义视图
-- (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
-{
-    
-    NSDictionary *dict = [self.rowData objectAtIndex:row];
-    NSString *type = [dict objectForKey:@"type"];
-    NSString *text = [dict objectForKey:@"text"];
-    
-    if (!text) {
-        return nil;
-    }
-    
-//    // Get an existing cell with the dump Identifier if it exists
-//    NSTextField *result = [tableView makeViewWithIdentifier:@"dump" owner:self];
-//    
-//    // There is no existing cell to reuse so create a new one
-//    if (result == nil) {
-//        // Create the new NSTextField with a frame of the {0,0} with the width of the table
-//        // Note that the height of the frame is not really relevant, because the row height will modify the height
-//        result = [[NSTextField alloc] initWithFrame:<#(NSRect)#>]
+//// 返回数据行数
+//- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView
+//{
+//    return self.rowData.count;
+//}
+//
+//// 返回row对应的自定义视图
+//- (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
+//{
+//
+//    NSDictionary *dict = [self.rowData objectAtIndex:row];
+//    NSString *type = [dict objectForKey:@"type"];
+//    NSString *text = [dict objectForKey:@"text"];
+//
+//    if (!text) {
+//        return nil;
 //    }
-    
-    NSTableCellView *cell = [tableView makeViewWithIdentifier:@"dump" owner:self];
-    cell.textField.stringValue = text;
-    cell.textField.drawsBackground = YES;
-    
-    if ([type isEqualToString:@"ME"]) {
-        cell.textField.textColor = [self getColorFromRGB:93 green:155 blue:194];
-    } else if ([type isEqualToString:@"ERROR"]) {
-        cell.textField.textColor = [self getColorFromRGB:249 green:141 blue:57];
-    } else {
-        cell.textField.textColor = [self getColorFromRGB:133 green:90 blue:194];
-    }
-    return cell;
-}
-
-// 点击选中row事件
-- (void)tableViewSelectionDidChange:(NSNotification *)notification
-{
-    NSLog(@"Selected Row:%ld", (long)_dumpTableView.selectedRow);
-    [self.dumpTableView editColumn:0 row:self.dumpTableView.selectedRow withEvent:nil select:YES];
-}
+//
+////    // Get an existing cell with the dump Identifier if it exists
+////    NSTextField *result = [tableView makeViewWithIdentifier:@"dump" owner:self];
+////
+////    // There is no existing cell to reuse so create a new one
+////    if (result == nil) {
+////        // Create the new NSTextField with a frame of the {0,0} with the width of the table
+////        // Note that the height of the frame is not really relevant, because the row height will modify the height
+////        result = [[NSTextField alloc] initWithFrame:<#(NSRect)#>]
+////    }
+//
+//    NSTableCellView *cell = [tableView makeViewWithIdentifier:@"dump" owner:self];
+//    cell.textField.stringValue = text;
+//    cell.textField.drawsBackground = YES;
+//
+//    if ([type isEqualToString:@"ME"]) {
+//        cell.textField.textColor = [self getColorFromRGB:93 green:155 blue:194];
+//    } else if ([type isEqualToString:@"ERROR"]) {
+//        cell.textField.textColor = [self getColorFromRGB:249 green:141 blue:57];
+//    } else {
+//        cell.textField.textColor = [self getColorFromRGB:133 green:90 blue:194];
+//    }
+//    return cell;
+//}
+//
+//// 点击选中row事件
+//- (void)tableViewSelectionDidChange:(NSNotification *)notification
+//{
+//    NSLog(@"Selected Row:%ld", (long)_dumpTableView.selectedRow);
+//    [self.dumpTableView editColumn:0 row:self.dumpTableView.selectedRow withEvent:nil select:YES];
+//}
 
 
 - (NSColor *)getColorFromRGB:(unsigned char)r green:(unsigned char)g blue:(unsigned char)b
@@ -846,45 +844,45 @@ BOOL isTLSSocket = NO;
 
 - (void)doubleClickForTableViewCell:(id)sender
 {
-    NSInteger rowIndex = _dumpTableView.clickedRow;
-    NSLog(@"Double Click Row:%ld", rowIndex);
-    if (rowIndex > self.rowData.count || rowIndex < 0)
-        return;
-    NSDictionary *dict = [self.rowData objectAtIndex:rowIndex];
-    NSString *type = [dict objectForKey:@"type"];
-    NSString *text = [dict objectForKey:@"text"];
-    
-    // NSPasteBoard 使用 ------
-    // --- 放内容 ----
-    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-    [pasteboard clearContents];
-    [pasteboard setString:text forType:NSPasteboardTypeString];
-    
-    // --- 取内容 ----
+//    NSInteger rowIndex = _dumpTableView.clickedRow;
+//    NSLog(@"Double Click Row:%ld", rowIndex);
+//    if (rowIndex > self.rowData.count || rowIndex < 0)
+//        return;
+//    NSDictionary *dict = [self.rowData objectAtIndex:rowIndex];
+//    NSString *type = [dict objectForKey:@"type"];
+//    NSString *text = [dict objectForKey:@"text"];
+//
+//    // NSPasteBoard 使用 ------
+//    // --- 放内容 ----
 //    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-//    NSArray *types = [pasteboard types];
-//    if ([types containsObject:NSPasteboardTypeString]) {
-//        NSString *s = [pasteboard stringForType:NSPasteboardTypeString];
-//        do something...
-//    }
+//    [pasteboard clearContents];
+//    [pasteboard setString:text forType:NSPasteboardTypeString];
+//
+//    // --- 取内容 ----
+////    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+////    NSArray *types = [pasteboard types];
+////    if ([types containsObject:NSPasteboardTypeString]) {
+////        NSString *s = [pasteboard stringForType:NSPasteboardTypeString];
+////        do something...
+////    }
+//
+//
+//    NSUserNotification *noti = [[NSUserNotification alloc] init];
+//    noti.title = @"Copy Finished";
+////    noti.subtitle = @"小标题";
+////    noti.informativeText = @"详细文字说明";
+//    noti.hasActionButton = YES;
+//    noti.actionButtonTitle = @"OK";
+//    noti.otherButtonTitle = @"Cancel";
+//
+//    [[NSUserNotificationCenter defaultUserNotificationCenter] scheduleNotification:noti];
+//    [[NSUserNotificationCenter defaultUserNotificationCenter] setDelegate:self];
+//    [NSTimer scheduledTimerWithTimeInterval:2.0 repeats:NO block:^(NSTimer * _Nonnull timer) {
+//        [[NSUserNotificationCenter defaultUserNotificationCenter] removeDeliveredNotification:noti];
+//    }];
     
-
-    NSUserNotification *noti = [[NSUserNotification alloc] init];
-    noti.title = @"Copy Finished";
-//    noti.subtitle = @"小标题";
-//    noti.informativeText = @"详细文字说明";
-    noti.hasActionButton = YES;
-    noti.actionButtonTitle = @"OK";
-    noti.otherButtonTitle = @"Cancel";
     
-    [[NSUserNotificationCenter defaultUserNotificationCenter] scheduleNotification:noti];
-    [[NSUserNotificationCenter defaultUserNotificationCenter] setDelegate:self];
-    [NSTimer scheduledTimerWithTimeInterval:2.0 repeats:NO block:^(NSTimer * _Nonnull timer) {
-        [[NSUserNotificationCenter defaultUserNotificationCenter] removeDeliveredNotification:noti];
-    }];
-    
-    
-    NSLog(@"Double Click Row Index:%ld Type:%@ Text:%@", rowIndex, type, text);
+//    NSLog(@"Double Click Row Index:%ld Type:%@ Text:%@", rowIndex, type, text);
 }
 
 - (void)userNotificationCenter:(NSUserNotificationCenter *)center didDeliverNotification:(NSUserNotification *)notification
