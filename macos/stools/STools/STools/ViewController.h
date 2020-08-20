@@ -42,6 +42,7 @@
 
 @property NSMutableArray *rowData;
 @property (weak) IBOutlet NSTableView *dumpTableView;
+@property (unsafe_unretained) IBOutlet NSTextView *dumpTextView;
 
 - (void)dieConnect;
 

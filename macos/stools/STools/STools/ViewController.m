@@ -43,11 +43,10 @@ BOOL isTLSSocket = NO;
     // Do any additional setup after loading the view.
     self.title = @"SMTP";
     
-    self.rowData = [[NSMutableArray alloc] init];
-    _dumpTableView.intercellSpacing = NSMakeSize(0, 0);
-    _dumpTableView.selectionHighlightStyle = NSTableViewSelectionHighlightStyleRegular;
-    
-    _dumpTableView.doubleAction = @selector(doubleClickForTableViewCell:);
+//    self.rowData = [[NSMutableArray alloc] init];
+//    _dumpTableView.intercellSpacing = NSMakeSize(0, 0);
+//    _dumpTableView.selectionHighlightStyle = NSTableViewSelectionHighlightStyleRegular;
+//    _dumpTableView.doubleAction = @selector(doubleClickForTableViewCell:);
     
     _bodyTextView.textColor = [NSColor whiteColor];
     
@@ -129,14 +128,14 @@ BOOL isTLSSocket = NO;
 
 
 - (IBAction)cleanButtonAction:(id)sender {
-//    _dumpTextView.string = @"";
-    if (self.rowData.count <= 0)
-        return;
+    _dumpTextView.string = @"";
+
+//    if (self.rowData.count <= 0)
+//        return;
+//
+//    [self.rowData removeAllObjects];
+//    [_dumpTableView reloadData];
     
-    [self.rowData removeAllObjects];
-    [_dumpTableView reloadData];
-    // 定位光标到新添加的行
-//    [self.dumpTableView editColumn:0 row:0 withEvent:nil select:YES];
 }
 
 - (IBAction)sendButtonAction:(id)sender {
@@ -193,7 +192,8 @@ BOOL isTLSSocket = NO;
         envto.length <= 0 ||
         body.length <= 0) {
         NSLog(@"Argument Error");
-        [self dumpTableViewAppendString:@"Argument Error" withType:@"ME"];
+        [self dumpTextViewAppendString:@"Argument Error\n" withType:@"ME"];
+//        [self dumpTableViewAppendString:@"Argument Error" withType:@"ME"];
         [self setSendButtonStatus:YES];
         return;
     }
@@ -201,7 +201,8 @@ BOOL isTLSSocket = NO;
         if (user.length <= 0 ||
             password.length <= 0) {
             NSLog(@"SASL Argument Error");
-            [self dumpTableViewAppendString:@"Argument Error" withType:@"ME"];
+            [self dumpTextViewAppendString:@"Argument Error\n" withType:@"ME"];
+//            [self dumpTableViewAppendString:@"Argument Error" withType:@"ME"];
             [self setSendButtonStatus:YES];
             return;
         }
@@ -234,7 +235,8 @@ BOOL isTLSSocket = NO;
 
     }
     if (!self.asyncSocket.isConnected) {
-        [self dumpTableViewAppendString:[NSString stringWithFormat:@"Connecting to %@:%d ...", ip, [port intValue]] withType:@"ME"];
+        [self dumpTextViewAppendString:[NSString stringWithFormat:@"Connecting to %@:%d ...", ip, [port intValue]] withType:@"ME"];
+//        [self dumpTableViewAppendString:[NSString stringWithFormat:@"Connecting to %@:%d ...", ip, [port intValue]] withType:@"ME"];
         
         NSError *error;
         BOOL ret = [self.asyncSocket connectToHost:ip onPort:[port intValue] withTimeout:rwTimeout error:&error];
@@ -271,9 +273,11 @@ BOOL isTLSSocket = NO;
 {
     NSLog(@"SocketDidDisconnect:%p withError:%@", sock, err);
     if (err != nil) {
-        [self dumpTableViewAppendString:[NSString stringWithFormat:@"Disconnect Connection. \n\nError: (%@)", err] withType:@"ME"];
+        [self dumpTextViewAppendString:[NSString stringWithFormat:@"Disconnect Connection. \n\nError: (%@)", err] withType:@"Error"];
+//        [self dumpTableViewAppendString:[NSString stringWithFormat:@"Disconnect Connection. \n\nError: (%@)", err] withType:@"ME"];
     } else {
-        [self dumpTableViewAppendString:@"Disconnect Connection." withType:@"ME"];
+        [self dumpTextViewAppendString:@"Disconnect Connection." withType:@"ME"];
+//        [self dumpTableViewAppendString:@"Disconnect Connection." withType:@"ME"];
     }
 
     
@@ -291,13 +295,16 @@ BOOL isTLSSocket = NO;
     NSLog(@"Socket:%p didConnectToHost:%@ port:%hu", sock, host, port);
     
     // 输出
-    [self dumpTableViewAppendString:[NSString stringWithFormat:@"-------------------------------\nConnect Remote(%@:%hu) Success...", host, port] withType:@"ME"];
+    [self dumpTextViewAppendString:[NSString stringWithFormat:@"-------------------------------\nConnect Remote(%@:%hu) Success...\n", host, port] withType:@"ME"];
+
+//    [self dumpTableViewAppendString:[NSString stringWithFormat:@"-------------------------------\nConnect Remote(%@:%hu) Success...", host, port] withType:@"ME"];
     
     NSString *crypto = _cryptoPopUpButton.titleOfSelectedItem;
     NSString *sslPeerName = [_sslPeerNameTextField.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     if (![crypto isEqualToString:@"No Crypto"]) {
         if (sslPeerName.length <= 0) {
-            [self dumpTableViewAppendString:@"Use SSL/TLS Must be set 'SSLPeerName'" withType:@"ME"];
+            [self dumpTextViewAppendString:@"Use SSL/TLS Must be set 'SSLPeerName'" withType:@"Error"];
+//            [self dumpTableViewAppendString:@"Use SSL/TLS Must be set 'SSLPeerName'" withType:@"ME"];
 
             [self dieConnect];
             return;
@@ -326,11 +333,13 @@ BOOL isTLSSocket = NO;
         bool ret = SecTrustEvaluateWithError(trust, &errorRef);
         if (ret) {
             NSLog(@"Certificate Match");
-            [self dumpTableViewAppendString:@"+++[Certificate Match]+++" withType:@"ME"];
+            [self dumpTextViewAppendString:@"+++[Certificate Match]+++" withType:@"NOTICE"];
+//            [self dumpTableViewAppendString:@"+++[Certificate Match]+++" withType:@"ERROR"];
             completionHandler(YES);
         } else {
             NSLog(@"Certificate Not Match");
-            [self dumpTableViewAppendString:@"+++[Certificate Not Match]+++" withType:@"ERROR"];
+            [self dumpTextViewAppendString:@"+++[Certificate Not Match]+++" withType:@"NOTICE"];
+//            [self dumpTableViewAppendString:@"+++[Certificate Not Match]+++" withType:@"ERROR"];
             completionHandler(NO);
         }
         
@@ -392,7 +401,8 @@ BOOL isTLSSocket = NO;
     NSString *inStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
     NSLog(@"%@", inStr);
     
-    [self dumpTableViewAppendString:inStr withType:@"OTHER"];
+    [self dumpTextViewAppendString:inStr withType:@"OTHER"];
+//    [self dumpTableViewAppendString:inStr withType:@"OTHER"];
     
     
     // ---- Parse Response ----
@@ -486,7 +496,8 @@ BOOL isTLSSocket = NO;
             outStr = [NSString stringWithFormat:@"LHLO %@\r\n", [[NSHost currentHost] name]];
             readState = LHLO;
         } else {
-            [self dumpTableViewAppendString:@"Unknow Protocol" withType:@"ME"];
+            [self dumpTextViewAppendString:@"Unknow Protocol" withType:@"ERROR"];
+//            [self dumpTableViewAppendString:@"Unknow Protocol" withType:@"ME"];
             [self.asyncSocket disconnect];
             self.asyncSocket = nil;
             return;
@@ -498,6 +509,14 @@ BOOL isTLSSocket = NO;
         
     } else if (tag == EHLO) {
         if ((isTLSSocket == NO) && [_cryptoPopUpButton.titleOfSelectedItem isEqualToString:@"TLS"]) {
+            if (supportTLS == NO) {
+                [self dumpTextViewAppendString:@"Server Unsupport TLS" withType:@"ERROR"];
+//                [self dumpTableViewAppendString:@"Server Unsupport TLS" withType:@"ERROR"];
+                [self.asyncSocket disconnect];
+                self.asyncSocket = nil;
+                return;
+            }
+            
             outStr = @"STARTTLS\r\n";
             readState = TLS;
             
@@ -623,7 +642,8 @@ BOOL isTLSSocket = NO;
     [self.asyncSocket writeData:[outStr dataUsingEncoding:NSUTF8StringEncoding] withTimeout:5.0 tag:readState];
     
 //    _dumpTextView.string = [NSString stringWithFormat:@"%@%@", _dumpTextView.string, outStr];
-    [self dumpTableViewAppendString:outStr withType:@"ME"];
+    [self dumpTextViewAppendString:outStr withType:@"ME"];
+//    [self dumpTableViewAppendString:outStr withType:@"ME"];
     
     
     [self.asyncSocket readDataWithTimeout:rwTimeout tag:readState];
@@ -696,7 +716,8 @@ BOOL isTLSSocket = NO;
     }
     
     if (peerName.length <= 0) {
-        [self dumpTableViewAppendString:@"se SSL/TLS Must be set 'SSLPeerName'" withType:@"ME"];
+        [self dumpTextViewAppendString:@"se SSL/TLS Must be set 'SSLPeerName'" withType:@"ME"];
+//        [self dumpTableViewAppendString:@"se SSL/TLS Must be set 'SSLPeerName'" withType:@"ME"];
         [self dieConnect];
         return;
     }
@@ -735,6 +756,32 @@ BOOL isTLSSocket = NO;
     [self.dumpTableView editColumn:0 row:(self.rowData.count - 1) withEvent:nil select:YES];
 }
 
+
+- (void)dumpTextViewAppendString:(NSString *)str withType:(NSString *)type
+{
+    char ch = [str characterAtIndex:(str.length - 1)];
+    if (ch != '\n') {
+        str = [str stringByAppendingFormat:@"\n"];
+    }
+    
+    NSMutableAttributedString *attributedString = [[NSMutableAttributedString alloc] initWithString:str];
+    
+    if ([type.uppercaseString isEqualToString:@"ME"]) {
+        [attributedString addAttribute:NSForegroundColorAttributeName value:[self getColorFromRGB:204 green:169 blue:253] range:NSMakeRange(0, str.length)];
+
+    } else if ([type.uppercaseString isEqualToString:@"ERROR"]) {
+        [attributedString addAttribute:NSForegroundColorAttributeName value:[self getColorFromRGB:247 green:141 blue:164] range:NSMakeRange(0, str.length)];
+
+    } else if ([type.uppercaseString isEqualToString:@"NOTICE"]) {
+        [attributedString addAttribute:NSForegroundColorAttributeName value:[self getColorFromRGB:249 green:141 blue:57] range:NSMakeRange(0, str.length)];
+        
+    } else {
+        [attributedString addAttribute:NSForegroundColorAttributeName value:[self getColorFromRGB:151 green:224 blue:206] range:NSMakeRange(0, str.length)];
+    }
+    
+    [_dumpTextView insertText:attributedString];
+}
+
 #pragma NSTableView Delegate
 
 // 返回数据行数
@@ -754,6 +801,16 @@ BOOL isTLSSocket = NO;
     if (!text) {
         return nil;
     }
+    
+//    // Get an existing cell with the dump Identifier if it exists
+//    NSTextField *result = [tableView makeViewWithIdentifier:@"dump" owner:self];
+//    
+//    // There is no existing cell to reuse so create a new one
+//    if (result == nil) {
+//        // Create the new NSTextField with a frame of the {0,0} with the width of the table
+//        // Note that the height of the frame is not really relevant, because the row height will modify the height
+//        result = [[NSTextField alloc] initWithFrame:<#(NSRect)#>]
+//    }
     
     NSTableCellView *cell = [tableView makeViewWithIdentifier:@"dump" owner:self];
     cell.textField.stringValue = text;

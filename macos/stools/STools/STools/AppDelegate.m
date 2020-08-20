@@ -37,6 +37,7 @@
     cryptoWC = [storyBoard instantiateControllerWithIdentifier:@"CryptoWindowController"];
     cryptoWC.window.delegate = self;
     self.cryptoMenuItem.state = NSControlStateValueOff;
+    
 
 }
 
